@@ -190,15 +190,14 @@ def main():
         /Parent_Dir
             /Day_0
                 /Control
-                    pic1.jpg, leaf_counts.csv, plant_heights.csv
+                    pic1.jpg, pic2.jpg, pic_metadata.csv
                 /Treatment_A
-                    pic2.jpg, leaf_counts.csv, plant_heights.csv
+                    pic3.jpg, pic4.jpg, pic_metadata.csv
             /Day_7
                 ...
         
         CSV REQUIREMENTS:
-        1. leaf_counts.csv: Must contain 'pic_filename' and 'leaf_count' columns.
-        2. plant_heights.csv: Must contain 'pic_filename' and 'height' columns.
+        pic_metadata.csv: Must contain 'pic_filename', 'leaf_count', and 'height' columns.
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
@@ -258,9 +257,10 @@ def main():
     leaves_dflist = []
 
     PIXEL_SAMPLE_SIZE = 10000
-    pixel_area = 0
 
     CAMERA_HEIGHT = args.cam_height
+
+    last_day = None
 
     for root, dirs, files in os.walk(args.directory):
         if root.count("/") > 1:
@@ -271,24 +271,27 @@ def main():
             matches = re.findall(pattern, day_str)
             day = int(matches[0])
 
-            leaf_counts = pd.read_csv(os.path.join(root, "leaf_counts.csv"))
-            plant_heights = pd.read_csv(os.path.join(root, "plant_heights.csv"))
+            plant_meta = pd.read_csv(os.path.join(root, "pic_metadata.csv"))
 
             current_dir_greens = []
             current_dir_leaf_areas = []
 
+            if last_day != day:
+                last_day = day
+                pixel_area = 0
+
             print(f"Processing: {root}")
 
             for pic in files:
-                if pic.endswith((".tiff", ".jpeg", ".jpg")):
+                if pic.endswith((".tiff", ".jpeg", ".jpg", ".png", ".bmp", ".tif")):
                     img = cv2.imread(os.path.join(root, pic))
-                    plant_height = plant_heights.loc[
-                        plant_heights["pic_filename"] == pic, "height"
+                    plant_height = plant_meta.loc[
+                        plant_meta["pic_filename"] == pic, "height"
                     ]
 
                     if plant_height.empty:
                         raise ValueError(
-                            f"There is no plant height associated with {os.path.join(root, pic)} in the corresponding plant_heights.csv"
+                            f"There is no plant height associated with {os.path.join(root, pic)} in the corresponding pic_metadata.csv"
                         )
 
                     while pixel_area == 0:
@@ -310,8 +313,8 @@ def main():
                         current_dir_greens.extend(greens)
 
                     # Leaf Area
-                    num_leaves = leaf_counts.loc[
-                        leaf_counts["pic_filename"] == pic, "leaf_count"
+                    num_leaves = plant_meta.loc[
+                        plant_meta["pic_filename"] == pic, "leaf_count"
                     ]
                     total_leaf_area = calculate_leaf_area(leaf_thresh, pixel_area)
 
