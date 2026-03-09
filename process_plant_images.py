@@ -155,7 +155,7 @@ def parse_tuple(s):
         )
 
 
-def graph_data(green_df, leaf_df, output_dir):
+def graph_data(green_df, leaf_df, canopy_df, output_dir, leaf_area_flag):
     plt.figure(figsize=(12, 8))
     greens_plot = sns.boxplot(
         green_df, x="Days", y="value", hue="Condition", palette="pastel"
@@ -168,15 +168,27 @@ def graph_data(green_df, leaf_df, output_dir):
     plt.clf()
 
     plt.figure(figsize=(12, 8))
-    avg_leaf_plot = sns.boxplot(
-        leaf_df, x="Days", y="value", hue="Condition", palette="pastel"
+    canopy_plot = sns.boxplot(
+        canopy_df, x="Days", y="value", hue="Condition", palette="pastel"
     )
-    plt.title("Average Leaf Area")
+    plt.title("Total Canopy Area")
+    plt.ylabel("Leaf Canopy Area (cm^2)")
     plt.xlabel("Days Post Seed")
-    plt.ylabel("Leaf Area (cm^2)")
     plt.tight_layout()
-    plt.savefig(os.path.join(output_dir, "avg_leaf_plot.svg"))
+    plt.savefig(os.path.join(output_dir, "canopy_area_plot.svg"))
     plt.clf()
+
+    if leaf_area_flag:
+        plt.figure(figsize=(12, 8))
+        avg_leaf_plot = sns.boxplot(
+            leaf_df, x="Days", y="value", hue="Condition", palette="pastel"
+        )
+        plt.title("Average Leaf Area")
+        plt.ylabel("Leaf Area (cm^2)")
+        plt.xlabel("Days Post Seed")
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_dir, "avg_leaf_plot.svg"))
+        plt.clf()
 
 
 def main():
@@ -243,6 +255,14 @@ def main():
     )
 
     parser.add_argument(
+        "-l",
+        "--leaf-area",
+        action="store_true",
+        help="Use this flag if you want to calculate average leaf area in addition to total leaf canopy area",
+        dest="leaf_area",
+    )
+
+    parser.add_argument(
         "-o",
         "--output",
         help="Output directory for SVG graphs and CSV data (default: current dir).",
@@ -255,10 +275,13 @@ def main():
 
     greens_dflist = []
     leaves_dflist = []
+    canopy_dflist = []
 
     PIXEL_SAMPLE_SIZE = 10000
 
     CAMERA_HEIGHT = args.cam_height
+
+    leaf_area_flag = args.leaf_area
 
     last_day = None
 
@@ -274,7 +297,8 @@ def main():
             plant_meta = pd.read_csv(os.path.join(root, "pic_metadata.csv"))
 
             current_dir_greens = []
-            current_dir_leaf_areas = []
+            current_dir_leaf_canopy = []
+            current_dir_leaf_area = []
 
             if last_day != day:
                 last_day = day
@@ -316,14 +340,20 @@ def main():
                     num_leaves = plant_meta.loc[
                         plant_meta["pic_filename"] == pic, "leaf_count"
                     ]
-                    total_leaf_area = calculate_leaf_area(leaf_thresh, pixel_area)
 
-                    if num_leaves.iloc[0] > 0:
-                        avg_leaf_area = total_leaf_area / num_leaves.iloc[0]
-                    else:
-                        avg_leaf_area = 0
+                    total_leaf_area = calculate_leaf_area(
+                        leaf_thresh, pixel_area
+                    )  # Canopy area
 
-                    current_dir_leaf_areas.append(avg_leaf_area)
+                    current_dir_leaf_canopy.append(total_leaf_area)
+
+                    if leaf_area_flag:
+                        if num_leaves.iloc[0] > 0:
+                            avg_leaf_area = total_leaf_area / num_leaves.iloc[0]
+                        else:
+                            avg_leaf_area = 0
+
+                        current_dir_leaf_area.append(avg_leaf_area)
 
             if current_dir_greens:
                 temp_greens_df = pd.DataFrame(
@@ -336,13 +366,24 @@ def main():
                 )
                 greens_dflist.append(temp_greens_df)
 
-            if current_dir_leaf_areas:
+            if current_dir_leaf_canopy:
+                temp_canopy_df = pd.DataFrame(
+                    {
+                        "Days": day,
+                        "DataType": "Leaf Canopy Area",
+                        "Condition": cond,
+                        "value": current_dir_leaf_canopy,
+                    }
+                )
+                canopy_dflist.append(temp_canopy_df)
+
+            if current_dir_leaf_area and leaf_area_flag:
                 temp_leaves_df = pd.DataFrame(
                     {
                         "Days": day,
                         "DataType": "Average Leaf Area",
                         "Condition": cond,
-                        "value": current_dir_leaf_areas,
+                        "value": current_dir_leaf_area,
                     }
                 )
                 leaves_dflist.append(temp_leaves_df)
@@ -353,16 +394,21 @@ def main():
     else:
         greens_final_df = pd.DataFrame()
 
-    if leaves_dflist:
+    if leaves_dflist and leaf_area_flag:
         leaves_final_df = pd.concat(leaves_dflist, ignore_index=True)
         leaves_final_df.to_csv(os.path.join(args.output, "leaves.csv"))
     else:
         leaves_final_df = pd.DataFrame()
 
-    if not greens_final_df.empty and not leaves_final_df.empty:
-        graph_data(greens_final_df, leaves_final_df, args.output)
+    if canopy_dflist:
+        canopy_final_df = pd.concat(canopy_dflist, ignore_index=True)
+        canopy_final_df.to_csv(os.path.join(args.output, "canopy.csv"))
     else:
-        print("No data was collected to graph.")
+        canopy_final_df = pd.DataFrame()
+
+    graph_data(
+        greens_final_df, leaves_final_df, canopy_final_df, args.output, leaf_area_flag
+    )
 
 
 if __name__ == "__main__":

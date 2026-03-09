@@ -1,10 +1,11 @@
 # Lightbox Plant Image Analyzer
 
-- This software aims to provide distribution of average leaf areas and "greenness" distributions for plants taken in a study where a lightbox is employed
+- This software aims to provide distribution of total leaf canopy area/average leaf areas and "greenness" distributions for plants taken in a study where a lightbox is employed
 - The lightbox should have a reference ruler on the base for pixel area calibration and each picture should be taken at a constant height
-- In order for this to work, the height of each plant must be taken from the base and each leaf counted. If leaves are severly overlapping, then this
+- In order for this to work, the height of each plant must be taken from the base and each leaf counted (if average leaf area is desired). If leaves are severly overlapping, then this
   will return inaccurate results in terms of leaf area; however, if all plants have overlapping leaves, then the relative inaccurate leaf areas will still
-  have merit.
+  have merit although total canopy area may be of more use.
+- If there are other plants in the soil or other green artifacts that you do not wish to include in this analysis, remove these from the image before analysis via AI eraser tool or other means.
 
 ## Create conda environemnt with dependencies
 
@@ -43,13 +44,14 @@
 
 ## Usage
 
-1. Use hsv_thresholder.py on a couple of images to isolate leaves as much as possible using the Hue/Saturation/Value (HSV) min and max sliders. Press ctrl-c in terminal to exit the program
+1. Use hsv_thresholder.py on a couple of images to isolate leaves from the background as much as possible using the Hue/Saturation/Value (HSV) min and max sliders. Press ctrl-c in terminal to exit the program
 
 `python hsv_thresholder.py -i path/to/image`
 
 2. Keep note of the min and max values used to make your thresholds
-3. Use process_plant_images.py to perform an analysis on the leaf sizes and greenness distributions between conditions over the course of a study
+3. Use process_plant_images.py to perform an analysis on the leaf canopy/leaf area sizes and greenness distributions between conditions over the course of a study
 
-`python process_plant_images.py -d path/to/parent_dir -c CAMERA_HEIGHT_IN_CM -t HMIN,HMAX SMIN,SMAX VMIN,VMAX -o path/to/output_dir`
+`python process_plant_images.py -d path/to/parent_dir -c CAMERA_HEIGHT_IN_CM -t HMIN,HMAX SMIN,SMAX VMIN,VMAX -o path/to/output_dir -l`
 
 For more detailed usage information: `python process_plant_images.py -h`
+Note: the -l/--leaf-area argument is required for average leaf area calculation. Without this flag, only the total leaf area canopy will be calculated
