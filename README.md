@@ -54,4 +54,5 @@
 `python process_plant_images.py -d path/to/parent_dir -c CAMERA_HEIGHT_IN_CM -t HMIN,HMAX SMIN,SMAX VMIN,VMAX -o path/to/output_dir -l`
 
 For more detailed usage information: `python process_plant_images.py -h`
-Note: the -l/--leaf-area argument is required for average leaf area calculation. Without this flag, only the total leaf area canopy will be calculated
+
+Note: the `-l/--leaf-area` argument is required for average leaf area calculation. Without this flag, only the total leaf area canopy will be calculated
